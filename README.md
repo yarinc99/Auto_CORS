@@ -1,6 +1,6 @@
 # Auto_CORS
 
-Put The Burp Request into the "request.txt" File And Run The Script.
+Put the burp request into the "request.txt" file and run the script.
 
 usage: Main.py [-h] [-s SITE] [-c CSRF] [-a AUTH]
 
