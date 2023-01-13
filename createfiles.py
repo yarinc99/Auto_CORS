@@ -17,7 +17,7 @@ class createfiles():
         with open ("request.txt", "r") as l:
             self.arg = l.read()
         if self.arg == '':
-            print(f'''The arguments file is empty. {self.path}/request.txt''')
+            print(f'''The request file is empty. {self.path}/request.txt''')
             exit()
         self.headers = self.arg.split("\n\n")[0]
         self.method = self.headers.split(" ")[0]
