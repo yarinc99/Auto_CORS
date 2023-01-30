@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CORS/XSS POC Builder</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="shortcut icon" type="image/x-icon" href="icon.png">
+</head>
+<body>
+  <h1>CORS/XSS POC Builder</h1>
+  <div id="request-output" style="display: block;">
+    <form>
+    <h3 id="error" style="display: none;"></h3>
+    <label for="request-input"><b>Enter The Request:</b></label>
+    <br>
+    <textarea id="request-input"></textarea>
+    <br>
+    <br>
+    <input type="checkbox" id="Site" name="Site" value="Site" onclick="myFunction()">
+    <label for="Site">Site: </label>
+    <input type="text" id="texta" name="site" rows="1" cols="20" style="display: none;">
+    <br>
+    <input type="checkbox" id="csrf" name="csrf" value="csrf">
+    <label for="csrf">CSRF Pulling: </label>
+    <br>
+    <input type="checkbox" id="Auth" name="Auth" value="Auth">
+    <label for="Auth">Disable Auth Pulling: </label>
+    <br>
+    <input type="checkbox" id="server" name="server" value="Server">
+    <label for="server">Open Python Live Server: </label>
+    <br><br>
+    <button type="submit" id="start">Start</button>
+  </form>
+  </div>
+  <div id="after" style="display: none;">
+  <h1>Script Code : </h1>
+  <textarea id="requesttext" cols="50" rows="30"></textarea>
+  <h2>The Code is also saved in the "CORS_Javascript" Folder</h2>
+  <button id="copy-button">Copy</button>
+  <button type="submit" id="reset">Reset</button>
+  </div>
+  <script type="text/javascript" src="../eel.js"></script>
+  <script src="./script.js"></script>
+  
+</body>
+</html>

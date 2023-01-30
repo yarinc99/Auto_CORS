@@ -1,12 +1,10 @@
 # Auto_CORS
 
-Put the burp request into the "request.txt" file and run the script.
+Put the burp request into the the text area.
 
-usage: Main.py [-h] [-s SITE] [-c CSRF] [-a AUTH]
+usage:python Main.py 
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -s SITE, --site SITE  Enter Your URL, 
+  SITE, --site SITE  Enter Your URL, 
   EXAMPLE: https://burcollab/. Default is : http://localhost:1234/cors.html
-  -c CSRF, --csrf CSRF  Enable CSRF Token Pulling : Y
-  -a AUTH, --auth AUTH  Disable Credentials Pulling: Y
+  CSRF, --csrf CSRF  Enable CSRF Token Pulling : Y
+  AUTH, --auth AUTH  Disable Credentials Pulling: Y

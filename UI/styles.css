@@ -1,0 +1,145 @@
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #191a1e;
+  color: #ffffff;
+  text-align: center;
+}
+
+h1, h2, h3 {
+  font-family: 'Orbitron', sans-serif;
+  color: #0094de;
+}
+
+form {
+  display: inline-block;
+  margin-top: 50px;
+  background-color: #2f3136;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px 0px #0094de;
+}
+
+label, textarea, input[type="text"], input[type="checkbox"] {
+  font-family: 'Orbitron', sans-serif;
+  color: #0094de;
+}
+
+textarea {
+  width: 500px;
+  height: 200px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  border: 2px solid #0094de;
+  padding: 10px;
+  resize: none;
+}
+
+input[type="checkbox"] {
+  margin-right: 10px;
+}
+
+input[type="text"] {
+  width: 500px;
+  height: 30px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  border: 2px solid #0094de;
+  padding: 10px;
+}
+
+button[type="submit"] {
+  font-family: 'Orbitron', sans-serif;
+  background-color: #0094de;
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  padding: 15px 30px;
+  margin-top: 20px;
+  cursor: pointer;
+}
+
+button[type="submit"]:hover {
+  background-color: #7f7fff;
+}
+
+#error {
+  color: #ff0000;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  font-size: 18px;
+  display: none;
+}
+
+#request-output {
+  display: block;
+  margin: 0 auto;
+  text-align: center;
+}
+
+#after {
+  display: none;
+  margin-top: 50px;
+  text-align: left;
+}
+
+#requesttext {
+  width: 800px;
+  height: 500px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  border: 2px solid #0094de;
+  padding: 10px;
+  resize: none;
+  font-family: 'Orbitron', sans-serif;
+  color: #0094de;
+  overflow: auto;
+}
+
+#copy-button {
+  font-family: 'Orbitron', sans-serif;
+  background-color: #0094de;
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  padding: 15px 30px;
+  margin-top: 20px;
+  cursor: pointer;
+  }
+  
+  #copy-button:hover {
+  background-color: #7f7fff;
+  }
+  
+  table {
+  margin: 50px auto;
+  text-align: center;
+  width: 80%;
+  border-collapse: collapse;
+  }
+  
+  th {
+  font-family: 'Orbitron', sans-serif;
+  background-color: #2f3136;
+  color: #0094de;
+  border: 1px solid #0094de;
+  padding: 10px;
+  }
+  
+  td {
+  font-family: 'Orbitron', sans-serif;
+  background-color: #191a1e;
+  color: #0094de;
+  border: 1px solid #0094de;
+  padding: 10px;
+  }
+  
+  tr:nth-child(even) {
+  background-color: #24252a;
+  }
+  
+  .highlight {
+  background-color: #7f7fff;
+  }

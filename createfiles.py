@@ -1,26 +1,28 @@
-import os,re
+import os,re,eel
 
 class createfiles():
     def __init__(self, args):
         self.args = args
-        self.arg = ''
+        self.arg = args.request
         self.reg = ''
         self.wcsrf=''
+        self.error = False
         self.content = ''
         self.body = ''
         self.path=os.getcwd()
         if not os.path.exists("CORS_Javascript"):
             os.mkdir("CORS_Javascript")
-        if not os.path.exists("request.txt"):
-            fp = open('request.txt', 'x')
-            fp.close()
-        with open ("request.txt", "r") as l:
-            self.arg = l.read()
         if self.arg == '':
-            print(f'''The request file is empty. {self.path}/request.txt''')
-            exit()
+            # print(f'''The request file is empty. {self.path}/request.txt''')
+            eel.error("Request block is empty")
+            self.error = True
+            return
         self.headers = self.arg.split("\n\n")[0]
         self.method = self.headers.split(" ")[0]
+        if self.method.lower() not in ['get','post','patch','delete']:
+            self.error = True
+            eel.error("Couldn't find Method")
+            return
         if self.method.upper() == 'POST':
             self.body = self.arg.split("\n\n")[1]
             self.content = re.search("Content-Type: (.*)",self.headers)[1]
@@ -28,7 +30,7 @@ class createfiles():
         self.domain = f'https://{self.domain}'
         self.url = self.headers.split(" ")[1]
         self.url = self.domain.strip()+self.url
-        if self.args.csrf.lower() == 'y':
+        if self.args.csrf:
             if 'csrf' or 'xsrf' in self.headers:
                 self.csheader = re.search("(.*c?x?srf.*?):",self.headers)[1]
                 self.wcsrf = f"xhr.setRequestHeader('{self.csheader}', csrf)"
