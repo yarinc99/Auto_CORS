@@ -1,0 +1,1225 @@
+<devicedata>
+    <copyright>Copyright 2023 Yarin. All rights reserved.</copyright>
+    <creator>Yarin Cohen</creator>
+    <manufacturer>Connecteam</manufacturer>
+    <name>HTTP Requests</name>
+    <model>HTTP Module</model>
+    <created>11/25/2023 11:15 AM</created>
+    <modified>11/25/2023 11:15 AM</modified>
+    <version>1</version>
+    <small>devices_sm\c4.gif</small>
+    <large>devices_lg\c4.gif</large>
+    <control>lua_gen</control>
+    <controlmethod>ip</controlmethod>
+    <driver>DriverWorks</driver>
+    <search_type>c4:av_gen</search_type>
+    <templatedescription>HTTP Requests</templatedescription>
+    <combo>True</combo>
+    <OnlineCategory>others</OnlineCategory>
+    <proxies qty="1">
+        <proxy>communication_template</proxy>
+    </proxies>
+    <connections>
+        <connection>
+            <id>1</id>
+            <facing>6</facing>
+            <connectionname>Serial 232</connectionname>
+            <type>1</type>
+            <consumer>True</consumer>
+            <audiosource>False</audiosource>
+            <videosource>False</videosource>
+            <linelevel>True</linelevel>
+            <classes>
+                <class>
+                    <classname>RS_232</classname>
+                </class>
+            </classes>
+        </connection>
+        <connection>
+            <id>6001</id>
+            <facing>6</facing>
+            <connectionname>Network Connection</connectionname>
+            <type>4</type>
+            <consumer>True</consumer>
+            <audiosource>False</audiosource>
+            <videosource>False</videosource>
+            <linelevel>True</linelevel>
+            <classes>
+                <class>
+                    <classname>TCP</classname>
+                    <ports>
+                        <port>
+                            <number>60000</number>
+                            <auto_connect>True</auto_connect>
+                            <monitor_connection>True</monitor_connection>
+                            <keep_connection>True</keep_connection>
+                        </port>
+                    </ports>
+                </class>
+            </classes>
+        </connection>
+    </connections>
+    <config>
+        <identify_text>HTTP Requests</identify_text>
+        <power_management_method>AlwaysOn</power_management_method>
+        <power_command_delay>0</power_command_delay>
+        <power_delay>0</power_delay>
+        <power_command_needed>False</power_command_needed>
+        <serialsettings>9600 8 none 1 none 232</serialsettings>
+        <documentation>Communication Template
+    </documentation>
+        <script><![CDATA[
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+-- Driver Declarations
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+--[[
+	Command Handler Tables
+--]]
+EX_CMD = {}
+PRX_CMD = {}
+NOTIFY = {}
+DEV_MSG = {}
+LUA_ACTION = {}
+
+--[[
+Tables of functions
+The following tables are function containers that are called within the following functions:	
+
+	OnDriverInit()
+		- first calls all functions contained within ON_DRIVER_EARLY_INIT table
+		- then calls all functions contained within ON_DRIVER_INIT table
+	OnDriverLateInit()
+		- calls all functions contained within ON_DRIVER_LATEINIT table
+	OnDriverUpdate()
+		- calls all functions contained within ON_DRIVER_UPDATE table
+	OnDriverDestroyed()
+		- calls all functions contained within ON_DRIVER_DESTROYED table
+	OnPropertyChanged()
+		- calls all functions contained within ON_PROPERTY_CHANGED table
+--]]
+ON_DRIVER_INIT = {}
+ON_DRIVER_EARLY_INIT = {}
+ON_DRIVER_LATEINIT = {}
+ON_DRIVER_UPDATE = {}
+ON_DRIVER_DESTROYED = {}
+ON_PROPERTY_CHANGED = {}
+
+-- Constants
+DEFAULT_PROXY_BINDINGID = 5001
+	  
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+-- Common Driver Code
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+--[[
+	OnPropertyChanged
+		Function called by Director when a property changes value.
+	Parameters
+		sProperty
+			Name of property that has changed.
+	Remarks
+		The value of the property that has changed can be found with: Properties[sName]. Note
+		that OnPropertyChanged is not called when the Property has been changed by the driver
+		calling the UpdateProperty command, only when the Property is changed by the user from
+		the Properties Page. This function is called by Director when a property changes value.
+--]]
+function OnPropertyChanged(sProperty)
+	Dbg:Trace("OnPropertyChanged(" .. sProperty .. ") changed to: " .. Properties[sProperty])
+
+	local propertyValue = Properties[sProperty]
+	
+	-- Remove any spaces (trim the property)
+	local trimmedProperty = string.gsub(sProperty, " ", "")
+
+	-- if function exists then execute (non-stripped)
+	if (ON_PROPERTY_CHANGED[sProperty] ~= nil and type(ON_PROPERTY_CHANGED[sProperty]) == "function") then
+		ON_PROPERTY_CHANGED[sProperty](propertyValue)
+		return
+	-- elseif trimmed function exists then execute
+	elseif (ON_PROPERTY_CHANGED[trimmedProperty] ~= nil and type(ON_PROPERTY_CHANGED[trimmedProperty]) == "function") then
+		ON_PROPERTY_CHANGED[trimmedProperty](propertyValue)
+		return
+	end
+end
+
+function ON_PROPERTY_CHANGED.DebugMode(propertyValue)
+	gDebugTimer:KillTimer()
+	Dbg:OutputPrint(propertyValue:find("Print") ~= nil)
+	Dbg:OutputC4Log(propertyValue:find("Log") ~= nil)
+	if (propertyValue == "Off") then return end
+	gDebugTimer:StartTimer()
+end
+
+function ON_PROPERTY_CHANGED.DebugLevel(propertyValue)
+	Dbg:SetLogLevel(tonumber(string.sub(propertyValue, 1, 1)))
+end
+
+---------------------------------------------------------------------
+-- ExecuteCommand Code
+---------------------------------------------------------------------
+--[[
+	ExecuteCommand
+		Function called by Director when a command is received for this DriverWorks driver.
+		This includes commands created in Composer programming.
+	Parameters
+		sCommand
+			Command to be sent
+		tParams
+			Lua table of parameters for the sent command
+--]]
+function ExecuteCommand(sCommand, tParams)
+	Dbg:Trace("ExecuteCommand(" .. sCommand .. ")")
+	Dbg:Info(tParams)
+
+	-- Remove any spaces (trim the command)
+	local trimmedCommand = string.gsub(sCommand, " ", "")
+
+	-- if function exists then execute (non-stripped)
+	if (EX_CMD[sCommand] ~= nil and type(EX_CMD[sCommand]) == "function") then
+		EX_CMD[sCommand](tParams)
+	-- elseif trimmed function exists then execute
+	elseif (EX_CMD[trimmedCommand] ~= nil and type(EX_CMD[trimmedCommand]) == "function") then
+		EX_CMD[trimmedCommand](tParams)
+	-- handle the command
+	elseif (EX_CMD[sCommand] ~= nil) then
+		QueueCommand(EX_CMD[sCommand])
+	else
+		Dbg:Alert("ExecuteCommand: Unhandled command = " .. sCommand)
+	end
+end
+
+function EX_CMD.HTTP_Get(tParams)
+	C4:LuaUrl:Get(tParams['Web Address'])
+--[[
+	Define any functions of commands (EX_CMD.<command>) received from ExecuteCommand that need to be handled by the driver.
+--]]
+
+--[[
+	EX_CMD.LUA_ACTION
+		Function called for any actions executed by the user from the Actions Tab in Composer.
+--]]
+function EX_CMD.LUA_ACTION(tParams)
+	if tParams ~= nil then
+		for cmd,cmdv in pairs(tParams) do
+			if cmd == "ACTION" then
+				if (LUA_ACTION[cmdv] ~= nil) then
+					LUA_ACTION[cmdv]()
+				else
+					Dbg:Alert("Undefined Action")
+					Dbg:Alert("Key: " .. cmd .. " Value: " .. cmdv)
+				end
+			else
+				Dbg:Alert("Undefined Command")
+				Dbg:Alert("Key: " .. cmd .. " Value: " .. cmdv)
+			end
+		end
+	end
+end
+
+--[[
+	LUA_ACTION.DisplayGlobals
+		Implementation of Action "Display Globals". Executed when selecting the "Display Globals" action within Composer.
+		Provided as an example for actions.
+--]]
+function LUA_ACTION.DisplayGlobals()
+	print ("Global Variables")
+	print ("----------------------------")
+
+	for k,v in pairs(_G) do	-- globals`
+		if not (type(v) == "function") then
+			--print(k .. ":  " .. tostring(v))
+			if (string.find(k, "^g%L")  == 1) then
+				print(k .. ":  " .. tostring(v))
+				if (type(v) == "table") then
+					PrintTable(v, "   ")
+				end
+			end
+		end
+	end
+
+	print ("")
+end
+
+function PrintTable(tValue, sIndent)
+	sIndent = sIndent or "   "
+	for k,v in pairs(tValue) do
+		print(sIndent .. tostring(k) .. ":  " .. tostring(v))
+		if (type(v) == "table") then
+			PrintTable(v, sIndent .. "   ")
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- ReceivedFromProxy Code
+---------------------------------------------------------------------
+--[[
+	ReceivedFromProxy(idBinding, sCommand, tParams)
+		Function called by Director when a proxy bound to the specified binding sends a
+		BindMessage to the DriverWorks driver.
+
+	Parameters
+		idBinding
+			Binding ID of the proxy that sent a BindMessage to the DriverWorks driver.
+		sCommand
+			Command that was sent
+		tParams
+			Lua table of received command parameters
+--]]
+function ReceivedFromProxy(idBinding, sCommand, tParams)
+	if (sCommand ~= nil) then
+		if(tParams == nil)		-- initial table variable if nil
+			then tParams = {}
+		end
+		Dbg:Trace("ReceivedFromProxy(): " .. sCommand .. " on binding " .. idBinding .. "; Call Function " .. sCommand .. "()")
+		Dbg:Info(tParams)
+
+		if (PRX_CMD[sCommand]) ~= nil then
+			PRX_CMD[sCommand](idBinding, tParams)
+		else
+			Dbg:Alert("ReceivedFromProxy: Unhandled command = " .. sCommand)
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Notification Code
+---------------------------------------------------------------------
+-- notify with parameters
+function SendNotify(notifyText, Parms, bindingID)
+	C4:SendToProxy(bindingID, notifyText, Parms, "NOTIFY")
+end
+
+-- A notify with no parameters
+function SendSimpleNotify(notifyText, ...)
+	bindingID = select(1, ...) or DEFAULT_PROXY_BINDINGID
+	C4:SendToProxy(bindingID, notifyText, {}, "NOTIFY")
+end
+
+---------------------------------------------------------------------
+-- Initialization/Destructor Code
+---------------------------------------------------------------------
+--[[
+	OnDriverInit
+		Invoked by director when a driver is loaded. This API is provided for the driver developer to contain all of the driver
+		objects that will require initialization.
+--]]
+function OnDriverInit()
+	C4:ErrorLog("INIT_CODE: OnDriverInit()")
+	-- Call all ON_DRIVER_EARLY_INIT functions.
+	for k,v in pairs(ON_DRIVER_EARLY_INIT) do
+		if (ON_DRIVER_EARLY_INIT[k] ~= nil and type(ON_DRIVER_EARLY_INIT[k]) == "function") then
+			C4:ErrorLog("INIT_CODE: ON_DRIVER_EARLY_INIT." .. k .. "()")
+			ON_DRIVER_EARLY_INIT[k]()
+		end
+	end
+
+	-- Call all ON_DRIVER_INIT functions
+	for k,v in pairs(ON_DRIVER_INIT) do
+		if (ON_DRIVER_INIT[k] ~= nil and type(ON_DRIVER_INIT[k]) == "function") then
+			C4:ErrorLog("INIT_CODE: ON_DRIVER_INIT." .. k .. "()")
+			ON_DRIVER_INIT[k]()
+		end
+	end
+
+	-- Fire OnPropertyChanged to set the initial Headers and other Property global sets, they'll change if Property is changed.
+	for k,v in pairs(Properties) do
+		OnPropertyChanged(k)
+	end
+end
+
+--[[
+	OnDriverUpdate
+		Invoked by director when an update to a driver is requested. This request can occur either by adding a new version of a driver
+		through the driver search list or right clicking on the driver and selecting "Update Driver" from within ComposerPro.
+		Its purpose is to initialize all components of the driver that are reset during a driver update.
+--]]
+function OnDriverUpdate()
+	C4:ErrorLog("INIT_CODE: OnDriverUpdate()")
+	
+	-- Call all ON_DRIVER_UPDATE functions
+	for k,v in pairs(ON_DRIVER_UPDATE) do
+		if (ON_DRIVER_UPDATE[k] ~= nil and type(ON_DRIVER_UPDATE[k]) == "function") then
+			C4:ErrorLog("INIT_CODE: ON_DRIVER_UPDATE." .. k .. "()")
+			ON_DRIVER_UPDATE[k]()
+		end
+	end
+end
+
+--[[
+	OnDriverLateInit
+		Invoked by director after all drivers in the project have been loaded. This API is provided
+		for the driver developer to contain all of the driver objects that will require initialization
+		after all drivers in the project have been loaded.
+--]]
+function OnDriverLateInit()
+	C4:ErrorLog("INIT_CODE: OnDriverLateInit()")
+	
+	-- Call all ON_DRIVER_LATEINIT functions
+	for k,v in pairs(ON_DRIVER_LATEINIT) do
+		if (ON_DRIVER_LATEINIT[k] ~= nil and type(ON_DRIVER_LATEINIT[k]) == "function") then
+			C4:ErrorLog("INIT_CODE: ON_DRIVER_LATEINIT." .. k .. "()")
+			ON_DRIVER_LATEINIT[k]()
+		end
+	end
+end
+
+
+--[[
+	OnDriverDestroyed
+		Function called by Director when a driver is removed. Release things this driver has allocated such as timers.
+--]]
+function OnDriverDestroyed()
+	C4:ErrorLog("INIT_CODE: OnDriverDestroyed()")
+	-- Call all ON_DRIVER_DESTROYED functions
+	for k,v in pairs(ON_DRIVER_DESTROYED) do
+		if (ON_DRIVER_DESTROYED[k] ~= nil and type(ON_DRIVER_DESTROYED[k]) == "function") then
+			C4:ErrorLog("INIT_CODE: ON_DRIVER_DESTROYED." .. k .. "()")
+			ON_DRIVER_DESTROYED[k]()
+		end
+	end
+end
+      
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+-- Device Communication Code (Serial, Network)
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+-- Constants
+SERIAL_BINDING_ID = 1
+NETWORK_BINDING_ID = 6000
+NETWORK_PORT = 23
+COMMAND_QUEUE_SIZE = 100
+
+--[[
+	This will be called by the base template code from its OnDriverInit function.
+--]]
+function ON_DRIVER_INIT.Communication()
+	CommunicationCommonInit()
+	
+	-- Add C4:AddVariables here
+end
+
+--[[
+	This will be called by the base template code from its OnDriverUpdate function.
+--]]
+function ON_DRIVER_UPDATE.Communication()
+	CommunicationCommonInit()
+end
+
+--[[
+	This will be called by the base template code from its OnDriverLateInit function.
+	
+	Available 2.5.0
+--]]
+function ON_DRIVER_LATEINIT.Communication()
+
+end
+
+function CommunicationCommonInit()
+	-- globals	
+	gReceiveBuffer = ""
+	gCommandQueue = CommandQueue.Create()
+	gCommandQueue:SetMaxSize(COMMAND_QUEUE_SIZE)
+	gIsNetworkConnected = false		-- Returned by OnNetworkBindingChanged. Indicates if Network connection is bound.
+	gIsSerialConnected = false		-- Returned by OnBindingChanged. Indicates if Serial connection is bound.
+	
+	-- timers
+	-- Note the use of properties to set the timer interval parameter.
+	-- The same properties are used in gSendTimer:StartTimer and gPollingTimer:StartTimer functions, respectively.
+	-- This enables adjustment of these interval times from the Driver Property Tab in Composer.
+	gSendTimer = Timer:Create("SendCommand", tonumber(Properties["Command Delay Milliseconds"]), "MILLISECONDS", OnSendTimerExpired)
+	gPollingTimer = Timer:Create("PollingTimer", tonumber(Properties["Polling Interval Seconds"]), "SECONDS", OnPollingTimerExpired)	
+end
+
+-- Create Overloaded queue and select type of queue to use.
+CommandQueue = {}
+
+--COMMAND_QUEUE_OPTION = 1
+
+function CommandQueue:Create()
+	local cq = setmetatable( Queue:Create(), { __index = CommandQueue, __tostring = function(mq) return mq:_tostring() end } )
+	
+	-- Overloaded function
+--[[
+	function cq:OnMaxSizeReached()
+		--Default: clear queue and push value to the queue. (No need to overload,
+		--         use "gCommandQueue = Queue.Create()" instead.
+
+		-- Option 1: Do Nothing, new item is not added to queue
+		if (COMMAND_QUEUE_OPTION == 1) then
+			Dbg:Info("Max Size Reached - do nothing, new item not added to queue (option 1)")
+			return (false)
+
+		-- Option 2: pop value, and push new value on queue
+		elseif(COMMAND_QUEUE_OPTION == 2) then
+			Dbg:Info("Max Size Reached - pop value, and push new value on queue (option 2)")
+			cq:pop()
+			return (true)
+
+		-- Option 3: clear queue and DO NOT push new value onto queue
+		elseif(COMMAND_QUEUE_OPTION == 3) then
+			Dbg:Info("Max Size Reached - clear queue and DO NOT push new value onto queue")
+			cq:clear()
+			return (false)
+		end
+	end
+--]]	
+	return cq
+end
+
+--[[
+	ReceivedFromNetwork(idBinding, nPort, sData)
+		Function which dumps the data received from network (hex format) for inspection via print. It then evaluates the response
+		for specific delimiters and extracts the necessary components which are then used to do something.
+	Parameters
+		idBinding
+			Binding ID of the proxy that sent a BindMessage to the DriverWorks driver.
+		nPort
+			Network Port utilized by the network connection
+		sData
+			Data received over the serial port
+--]]
+function ReceivedFromNetwork(idBinding, nPort, sData)
+	Dbg:Trace("ReceivedFromNetwork(), idBinding = " .. tostring(idBinding) .. ", nPort = " .. tostring(nPort) .. ", sData = " .. sData)
+	--hexdump (sData)
+
+	--device is ONLINE so reset polling counter
+	gLastCheckin = 0
+	
+	-- Add data to receive buffer
+	gReceiveBuffer = gReceiveBuffer .. sData
+
+	-- Parse and handle any data received.
+	ParsePacket()
+end
+
+--[[
+	ReceivedFromSerial(idBinding, sData)
+		Function which dumps the data received from serial (hex format) for inspection via print. It then evaluates the response
+		for specific delimiters and extracts the necessary components which are then used to do something.
+	Parameters
+		idBinding
+			Binding ID of the proxy that sent a BindMessage to the DriverWorks driver.
+		sData
+			Data received over the serial port
+--]]
+function ReceivedFromSerial(idBinding, sData)
+	Dbg:Trace("ReceivedFromSerial(), idBinding = " .. tostring(idBinding) .. ", sData = " .. sData)
+	--hexdump (sData)
+
+	-- Add data to receive buffer
+	gReceiveBuffer = gReceiveBuffer .. sData
+
+	-- Parse and handle any data received.
+	ParsePacket()
+end
+
+function SendToNetwork(sCommand)
+	Dbg:Trace("SendToNetwork(" .. NETWORK_BINDING_ID .. ", " .. sCommand .. ")")
+	if (gIsNetworkConnected) then
+		--[*TEMPLATE REVIEW*]
+		-- Commands typically require terminating character(s)
+		-- In the example below, a carriage return ("\r\n" - ASCII format) is being appended.
+		-- Sometimes a prefix may also be required. If so, it should be added here in the same manner.
+		if (gNetworkStatus == "ONLINE") then
+			C4:SendToNetwork(NETWORK_BINDING_ID, NETWORK_PORT, sCommand .. "\r") 
+			gSendTimer:StartTimer(tonumber(Properties["Command Delay Milliseconds"]))
+		else
+			CheckNetworkConnectionStatus()
+		end
+	else
+		Dbg:Warn("Not connected to network. Command not sent.")
+	end
+end
+
+function SendToSerial(sCommand)
+	Dbg:Trace("SendToSerial(" .. SERIAL_BINDING_ID .. ", " .. sCommand .. ")")
+	if (gIsSerialConnected) then
+		--[*TEMPLATE REVIEW*]
+		-- Commands typically require terminating character(s)
+		-- In the example below, a carriage return ("\r\n" - ASCII format) is being appended.
+		-- Sometimes a prefix may also be required. If so, it should be added here in the same manner.
+		C4:SendToSerial(SERIAL_BINDING_ID, sCommand .. "\r")
+		gSendTimer:StartTimer(tonumber(Properties["Command Delay Milliseconds"]))
+	else
+		Dbg:Warn("Not connected to serial. Command not sent.")
+	end
+end
+
+function OnSendTimerExpired()
+	Dbg:Trace("Send Timer expired")
+	gSendTimer:KillTimer()
+
+	local cmd = gCommandQueue:pop()
+	Dbg:Trace("Send Timer expired - Pop Command:" .. cmd .. ", Send Next Command")
+
+	if (not gCommandQueue:empty()) then
+		SendNextCommand()
+	end
+end
+
+function OnPollingTimerExpired()
+	Dbg:Trace("Polling Timer expired")
+	--the polling timer is used to send a polling query and re-establish a network connection if the device has fallen OFFLINE
+	--gLastCheckin is a polling counter that increments every time we send a polling query
+	--gLastCheckin is reset to 0 in the ReceivedFromNetwork(), OnConnectionStatusChanged() & OnNetworkBindingChanged() functions
+	gLastCheckin = gLastCheckin	or 0
+	gLastCheckin = gLastCheckin	+	1
+	if (gLastCheckin > 2)	then
+		if (gNetworkStatus ==	"OFFLINE") then
+			-- Try to	reconnect	to the device's	Control	port...
+			C4:NetDisconnect(NETWORK_BINDING_ID, NETWORK_PORT)
+			C4:NetConnect(NETWORK_BINDING_ID,	NETWORK_PORT)
+		else
+			C4:NetDisconnect(NETWORK_BINDING_ID, NETWORK_PORT)
+			dbg("Failed	to receive poll	responses... Disconnecting...")
+			C4:ErrorLog(DRIVER_NAME	.. " is	not	responding...	Disconnecting...")
+		end
+	end
+	--[*TEMPLATE REVIEW*]
+	--queue a valid device query per the protocol specification
+	--preferably a query that does not solicit a verbose reply
+	--for example, QueueCommand("PWRQSTN") where "PWRQSTN" is the syntax to query the current power state
+	--note that a query which also responds when the unit is powered off is required
+	QueueCommand("")
+	gPollingTimer:StartTimer(tonumber(Properties["Polling Interval Seconds"]))
+end
+
+function QueueCommand(sCommand)
+	Dbg:Trace("QueueCommand(), sCommand = " .. sCommand)
+	Dbg:Debug(gCommandQueue:_tostring())	
+
+	if (sCommand == nil) or (sCommand == "") then
+		return
+	end
+
+	if (gCommandQueue:empty()) then
+		gCommandQueue:push(sCommand)
+		SendCommand(sCommand)
+	else
+		gCommandQueue:push(sCommand)
+		CheckNetworkConnectionStatus()
+	end
+end
+
+function SendCommand(sCommand)
+	Dbg:Trace("SendCommand(), sCommand = " .. sCommand)
+	if (gControlMethod == "Network") then
+		SendToNetwork(sCommand)
+	elseif (gControlMethod == "Serial") then
+		SendToSerial(sCommand)
+	end
+end
+
+function SendNextCommand()
+	local sCommand = gCommandQueue:value()
+	Dbg:Trace("SendNextCommand(), sCommand = " .. sCommand)
+	if (sCommand == nil or sCommand == "") then
+		gSendTimer:KillTimer()
+	else
+		SendCommand(sCommand)
+	end
+end
+
+function CheckNetworkConnectionStatus()
+	if (gIsNetworkConnected and gNetworkStatus == "OFFLINE") then
+		Dbg:Warn("Network status is OFFLINE. Trying to reconnect to the device's Control port...")
+		C4:NetDisconnect(NETWORK_BINDING_ID, NETWORK_PORT)
+		C4:NetConnect(NETWORK_BINDING_ID, NETWORK_PORT)
+	end
+end
+
+-- Receiving Message
+
+function ParsePacket()
+	-- Parse and handle any data received.
+	local message = GetMessage()
+	
+	while (message ~= nil and message ~= "") do
+		HandleMessage(message)
+		
+		message = GetMessage()
+	end
+end
+
+--[[
+	GetMessage()
+		GetMessage parses the receive buffer to get the next request/response from the receive buffer.
+--]]
+function GetMessage()
+	Dbg:Trace("GetMessage()")
+
+	-- Get a single message from the buffer and return
+	
+	return message
+end
+
+function HandleACK()
+	Dbg:Trace("HandleACK()")
+	local cmd = gCommandQueue:pop()
+	gSendTimer:StartTimer(tonumber(Properties["Command Delay Milliseconds"]))
+	if (not gCommandQueue:empty()) then
+		SendNextCommand()
+	end
+end
+
+--[[
+	HandleMessage()
+		HandleMessage calls the appropriate handler for the request/response received.
+--]]
+function HandleMessage(message)
+	Dbg:Trace("HandleMessage(" .. message .. ")")
+
+	-- parse message and call appropriate handler DEV_MSG[name]
+
+	local name = "" -- name parsed from Message
+	local value = "" -- value parsed from message
+	
+	name = name or message
+	value = value or ""
+	
+	--[*TEMPLATE REVIEW*]
+	--HandleACK() explanation:
+	--by default the Command Queue is marshalled by gSendTimer. 
+	--When gSendTimer expires, the last command that was sent to the device is popped off the queue
+	--for devices that send an ACK (acknowledgement) after a command is successfully executed
+	--logic should be implemented here that would determine when an ACK has been received
+	--and then in turn call the HandleACK() function which will pop the last command off of the queue
+	--Below is and example assuming that the device ACK message includes the name of the command that was sent.
+	
+	--this example should uncommented and edited/replaced with logic as dictated by the device protocol
+	--if (string.find(gCommandQueue:value(), name) ~= nil) then HandleACK() end
+
+	if (DEV_MSG[name] ~= nil and (type(DEV_MSG[name]) == "function")) then
+		DEV_MSG[name](value)
+	else
+		Dbg:Info("HandleMessage: Unhandled message = " .. name)
+	end
+end
+
+--[[
+	Define any functions of device messages (DEV_MSG.<name>) received from device that need to be handled by the driver.
+--]]
+
+----------------------------------------- Connection Functions -----------------------------------------
+--[[
+	OnBindingChanged(idBinding, class, bIsBound)
+		Function called by Director when a binding changes state (bound or unbound).
+
+	Parameters
+		idBinding
+			ID of the binding whose state has changed.
+		class
+			Class of binding that has changed. A single binding can have multiple classes: COMPONENT, STEREO, RS_232, etc.
+			This indicates which has been bound or unbound.
+		bIsBound
+			Whether the binding has been bound or unbound.
+--]]
+function OnBindingChanged(idBinding, class, bIsBound)
+	Dbg:Trace("OnBindingChanged(), idBinding = " .. tostring(idBinding) .. ", class = " .. class .. ", bIsBound = " .. tostring(bIsBound))
+	
+	if(idBinding == SERIAL_BINDING_ID) then
+		gIsSerialConnected = bIsBound
+	end		
+	SetControlMethod()
+end
+
+--[[
+	OnNetworkBindingChanged(idBinding, bIsBound)
+		Function called by Director when a network binding changes state (bound or unbound).
+
+	Parameters
+		idBinding
+			ID of the binding whose state has changed.
+		bIsBound
+			Whether the binding has been bound or unbound.
+--]]
+function OnNetworkBindingChanged(idBinding, bIsBound)
+	Dbg:Trace('OnNetworkBindingChanged, idBinding = ' .. tostring(idBinding) .. ' bIsBound = ' .. tostring(bIsBound))
+	
+	--Network binding has changed so reset polling counter
+	gLastCheckin = 0
+	
+	gIsNetworkConnected = bIsBound
+	if (bIsBound == false) then
+		gPollingTimer:KillTimer()
+	end
+
+	SetControlMethod()
+end
+
+function SetControlMethod()
+	if (gIsNetworkConnected) then
+		gControlMethod = "Network"
+	elseif (gIsSerialConnected) then
+		gControlMethod = "Serial"	
+	else
+		gControlMethod = "(none)"	
+	end
+	gCommandQueue:clear()
+	return gControlMethod
+end
+
+function ValidateControlMethod(control_method)
+	local isValid = false
+	if (control_method=="Network") and (gIsNetworkConnected) then
+		isValid = true
+	elseif (control_method=="Serial") and (gIsSerialConnected) then
+		isValid = true	
+	end
+	return isValid
+end
+
+function OnConnectionStatusChanged(idBinding, nPort, sStatus)
+	Dbg:Trace("OnConnectionStatusChanged[" .. idBinding .. " (" .. nPort .. ")]: " .. sStatus)
+	if (idBinding == NETWORK_BINDING_ID) then
+		gNetworkStatus=sStatus
+		if (sStatus	== "ONLINE") then
+			gPollingTimer:StartTimer(tonumber(Properties["Polling Interval Seconds"]))
+			--device is ONLINE so reset polling counter
+			gLastCheckin = 0
+			C4:UpdateProperty("Connected To Network","true")
+			if (not gCommandQueue:empty()) then
+				SendNextCommand()
+			end
+		else
+			gPollingTimer:KillTimer()
+			C4:UpdateProperty("Connected To Network","false")
+		end				 
+	else
+		gPollingTimer:KillTimer()
+	end
+end
+
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+-- Debug Logging Code
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Log = {}
+
+-- Create a Table with Logging functions
+function Log:Create()
+	
+	-- table for logging functions
+	local lt = {}
+	
+	lt._logLevel = 0
+	lt._outputPrint = false
+	lt._outputC4Log = false
+	lt._logName =  "Set Log Name to display"
+	
+	function lt:SetLogLevel(level)
+		self._logLevel = level
+	end
+	
+	function lt:OutputPrint(value)
+		self._outputPrint = value
+	end
+	
+	function lt:OutputC4Log(value)
+		self._outputC4Log = value
+	end
+	
+	function lt:SetLogName(name)
+		self._logName = name
+	end
+
+	function lt:Enabled()
+		return (self._outputPrint or self._outputC4Log)
+	end
+	
+	function lt:PrintTable(tValue, sIndent)
+		if (type(tValue) == "table") then
+			if (self._outputPrint) then
+				for k,v in pairs(tValue) do
+					print(sIndent .. tostring(k) .. ":  " .. tostring(v))
+					if (type(v) == "table") then
+						self:PrintTable(v, sIndent .. "   ")
+					end
+				end
+			end
+	
+			if (self._outputC4Log) then
+				for k,v in pairs(tValue) do
+					C4:ErrorLog(self._logName .. ": " .. sIndent .. tostring(k) .. ":  " .. tostring(v))
+					if (type(v) == "table") then
+						self:PrintTable(v, sIndent .. "   ")
+					end
+				end
+			end
+
+		else
+			if (self._outputPrint) then
+				print (sIndent .. tValue)
+			end
+			
+			if (self._outputC4Log) then
+				C4:ErrorLog(self._logName .. ": " .. sIndent .. tValue)
+			end
+		end
+	end
+		
+	function lt:Print(logLevel, sLogText)
+		if (self._logLevel >= logLevel) then
+			if (type(sLogText) == "table") then
+				self:PrintTable(sLogText, "   ")
+				return
+			end
+			
+			if (self._outputPrint) then
+				print (sLogText)
+			end
+
+			if (self._outputC4Log) then
+				C4:ErrorLog(self._logName .. ": " .. sLogText)
+			end
+		end
+	end
+	
+	function lt:Alert(strDebugText)
+		self:Print(0, strDebugText)
+	end
+	
+	function lt:Error(strDebugText)
+		self:Print(1, strDebugText)
+	end
+	
+	function lt:Warn(strDebugText)
+		self:Print(2, strDebugText)
+	end
+	
+	function lt:Info(strDebugText)
+		self:Print(3, strDebugText)
+	end
+	
+	function lt:Trace(strDebugText)
+		self:Print(4, strDebugText)
+	end
+	
+	function lt:Debug(strDebugText)
+		self:Print(5, strDebugText)
+	end
+	
+	return lt
+end
+
+function ON_DRIVER_EARLY_INIT.LogLib()
+	-- Create and initialize debug logging
+	Dbg = Log.Create()
+	Dbg:SetLogName("base_template PLEASE CHANGE")
+end
+
+function ON_DRIVER_INIT.LogLib()
+	-- Create Debug Timer
+	gDebugTimer = Timer:Create("Debug", 45, "MINUTES", OnDebugTimerExpired)
+end
+
+--[[
+	OnDebugTimerExpired
+		Debug timer callback function
+--]]
+function OnDebugTimerExpired()
+	Dbg:Warn("Turning Debug Mode Off (timer expired)")
+	gDebugTimer:KillTimer()
+	C4:UpdateProperty("Debug Mode", "Off")
+	OnPropertyChanged("Debug Mode")
+end
+      
+---------------------------------------------------------------------
+-- Timer Code
+---------------------------------------------------------------------
+Timer = {}
+
+-- Create a Table with Timer functions
+function Timer:Create(name, interval, units, Callback, repeating, Info)
+	-- timers table
+	local tt = {}
+	
+	tt._name = name
+	tt._timerID = TimerLibGetNextTimerID()
+	tt._interval = interval
+	tt._units = units
+	tt._repeating = repeating or false
+	tt._Callback = Callback
+	tt._info = Info or ""
+	tt._id = 0
+
+	function tt:StartTimer(...)
+		self:KillTimer()
+		
+		-- optional parameters (interval, units, repeating)
+		if ... then
+			local interval = select(1, ...)
+			local units = select(2, ...)
+			local repeating = select(3, ...)
+			
+			self._interval = interval or self._interval
+			self._units = units or self._units
+			self._repeating = repeating or self._repeating
+		end
+		
+		if (self._interval > 0) then
+			Dbg:Trace("Starting Timer: " .. self._name)
+			self._id = C4:AddTimer(self._interval, self._units, self._repeating)
+		end
+	end
+
+	function tt:KillTimer()
+		if (self._id) then
+			self._id = C4:KillTimer(self._id)
+		end
+	end
+	
+	function tt:TimerStarted()
+		return (self._id ~= 0)
+	end
+			
+	function tt:TimerStopped()
+		return not self:TimerStarted()
+	end
+	
+	gTimerLibTimers[tt._timerID] = tt
+	Dbg:Trace("Created timer " .. tt._name)
+	
+	return tt
+end
+
+function TimerLibGetNextTimerID()
+	gTimerLibTimerCurID = gTimerLibTimerCurID + 1
+	return gTimerLibTimerCurID
+end
+
+function ON_DRIVER_EARLY_INIT.TimerLib()
+	gTimerLibTimers = {}
+	gTimerLibTimerCurID = 0
+end
+
+function ON_DRIVER_DESTROYED.TimerLib()
+	-- Kill open timers
+	for k,v in pairs(gTimerLibTimers) do
+		v:KillTimer()
+	end
+end
+
+--[[
+	OnTimerExpired
+		Function called by Director when the specified Control4 timer expires.
+	Parameters
+		idTimer
+			Timer ID of expired timer.
+--]]
+function OnTimerExpired(idTimer)
+	for k,v in pairs(gTimerLibTimers) do
+		if (idTimer == v._id) then
+			if (v._Callback) then
+				v._Callback(v._info)
+			end
+		end
+	end
+end
+
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+-- Queue Code
+--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Queue = {}
+
+-- Create a Table with Queue functions
+function Queue:Create()
+
+	-- queue table
+	local t = setmetatable(Queue, {
+		__tostring = function(t)
+			return t:_tostring()
+		end
+	})
+
+	function t:_tostring()
+		local tOutputString = {}
+		
+		table.insert(tOutputString, "--- Queue ---")
+		table.insert(tOutputString, "  first = " .. tostring(self._et.first))
+		table.insert(tOutputString, "  last = " .. tostring(self._et.last))
+		table.insert(tOutputString, "  number in queue = " .. tostring(self._et.last - self._et.first + 1))
+		table.insert(tOutputString, "  maximum size = " .. self._maxSize)
+		table.insert(tOutputString, "  next value = " .. self:value())
+		return table.concat(tOutputString, "\n")
+	end
+
+	-- entry table
+	t._et = {first = 0, last = -1}
+	t._maxSize = 0	-- no size limit
+
+	-- push a value on the queue
+	function t:push (value)
+		local numItems = self._et.last - self._et.first + 1
+
+		if ( (self._maxSize <= 0) or (numItems < self._maxSize) ) then
+			local last = self._et.last + 1
+			self._et.last = last
+			self._et[last] = value
+			--Dbg:Trace ("Queue:push(), first = " .. tostring(self._et.first) .. ", last = " .. tostring(self._et.last) .. ", number in queue = " .. tostring(self._et.last - self._et.first + 1) .. ", value = " .. value)
+		else
+			-- if addToQueue == true then push value to queue
+			if (self.OnMaxSizeReached()) then
+				local last = self._et.last + 1
+				self._et.last = last
+				self._et[last] = value
+				--Dbg:Trace ("Queue:push(), first = " .. tostring(self._et.first) .. ", last = " .. tostring(self._et.last) .. ", number in queue = " .. tostring(self._et.last - self._et.first + 1) .. ", value = " .. value)
+			end
+		end
+	end
+
+	function t:OnMaxSizeReached()
+		--Dbg:Trace ("Max Size Reached - clear queue and push value to the queue (default).")
+		local addToQueue = true
+
+		t:clear()
+		return (addToQueue)
+	end
+
+	-- pop a value from the queue
+	function t:pop ()
+		local first = self._et.first
+		if first > self._et.last then
+			--Dbg:Trace("Queue:pop(), queue is empty")
+			return ""
+		end
+		local value = self._et[first]
+		self._et[first] = nil        -- to allow garbage collection
+		self._et.first = first + 1
+		--Dbg:Trace ("Queue:pop(), first = " .. tostring(self._et.first) .. ", last = " .. tostring(self._et.last) .. ", number in queue = " .. tostring(self._et.last - self._et.first + 1) .. ", value = " .. value)
+		return value
+	end
+
+	-- clear queue
+	function t:clear ()
+		local first = self._et.first
+		if first > self._et.last then
+			--Dbg:Trace ("Queue:clear(), queue is empty")
+			return ""
+		end
+		
+		self._et = {first = 0, last = -1}
+		--Dbg:Trace ("Queue:clear(), first = " .. tostring(self._et.first) .. ", last = " .. tostring(self._et.last) .. ", number in queue = " .. tostring(self._et.last - self._et.first + 1))
+		--Dbg:Trace (self._et)
+	end
+
+	-- return value of first item
+	function t:value ()
+		local first = self._et.first
+		if (first > self._et.last) then
+			return ""
+		else
+			return self._et[first]
+		end
+	end
+
+	-- return queue's maximum size
+	function t:MaxSize ()
+		return self._maxSize
+	end
+
+	-- return queue's maximum size
+	function t:SetMaxSize (size)
+		self._maxSize = size
+	end
+
+	-- is queue empty?
+	function t:empty ()
+		-- print ("self._et.first = " .. tostring(self._et.first) .. ", self._et.last = " .. tostring(self._et.last))
+		if (self._et.first > self._et.last) then
+			return true
+		else
+			return false
+		end
+	end
+	
+	return t
+end
+      ]]></script>
+        <actions>
+            <action>
+                <name>Display Globals</name>
+                <command>DisplayGlobals</command>
+            </action>
+        </actions>
+        <commands>
+            <command>
+                <name>HTTP_Get</name>
+                <description>This NAME is undefined</description>
+                <params>
+                    <param>
+                        <name>Web Address</name>
+                        <type>STRING</type>
+                        <readonly>False</readonly>
+                        <default>http://</default>
+                    </param>
+                </params>
+            </command>
+        </commands>
+        <properties>
+            <property>
+                <name>Debug Level</name>
+                <type>LIST</type>
+                <readonly>false</readonly>
+                <default>2 - Warning</default>
+                <items>
+                    <item>0 - Alert</item>
+                    <item>1 - Error</item>
+                    <item>2 - Warning</item>
+                    <item>3 - Info</item>
+                    <item>4 - Trace</item>
+                    <item>5 - Debug</item>
+                </items>
+            </property>
+            <property>
+                <name>Debug Mode</name>
+                <type>LIST</type>
+                <readonly>false</readonly>
+                <default>Off</default>
+                <items>
+                    <item>Off</item>
+                    <item>Print</item>
+                    <item>Log</item>
+                    <item>Print and Log</item>
+                </items>
+            </property>
+            <property>
+                <name>Command Delay Milliseconds</name>
+                <type>RANGED_INTEGER</type>
+                <readonly>false</readonly>
+                <default>500</default>
+                <minimum>50</minimum>
+                <maximum>2500</maximum>
+            </property>
+            <property>
+                <name>Polling Interval Seconds</name>
+                <type>RANGED_INTEGER</type>
+                <readonly>false</readonly>
+                <default>15</default>
+                <minimum>5</minimum>
+                <maximum>60</maximum>
+            </property>
+            <property>
+                <name>Connected To Network</name>
+                <type>STRING</type>
+                <readonly>true</readonly>
+                <default>false</default>
+            </property>
+        </properties>
+    </config>
+    <composer_categories>
+        <category>Audio/Video</category>
+        <category>Camera</category>
+        <category>Controllers</category>
+        <category>HVAC</category>
+        <category>Lighting</category>
+        <category>Motorization</category>
+        <category>Pool And Spa</category>
+        <category>Security</category>
+        <category>Sensors</category>
+        <category>Storage</category>
+        <category>User Interface</category>
+    </composer_categories>
+    <navigator_categories>
+        <category>Comfort</category>
+        <category>Home</category>
+    </navigator_categories>
+</devicedata>
